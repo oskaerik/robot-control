@@ -3,40 +3,94 @@
   <head>
     <title>Robot Control</title>
     <meta name="viewport" content="width=device-width, user-scalable=no" />
-	  <script src="/socket.io/socket.io.js"></script>
 
+	  <script src="/socket.io/socket.io.js"></script>
     <script>
       // Socket for socket.io
       var socket = io();
+      var controls;
+      var touching = null;
 
       function initialize() {
-        fillCanvas("#FF0000");
-        var canvas = document.getElementById("canvas");
-        canvas.addEventListener("touchstart", function() { changeState("yes"); });
-        canvas.addEventListener("touchend", function() { changeState("no"); });
-      }
+        // Controls: 0: up, 1: down, 2: right, 3: left
+        controls = [
+          document.getElementById("c0"),
+          document.getElementById("c1"),
+          document.getElementById("c2"),
+          document.getElementById("c3"),
+        ]
 
-      function changeState(touching) {
-        // Change color of the canvas and send a message to the server
-        if (touching == "yes") {
-          fillCanvas("#00FF00");
-          socket.emit('touching', 'yes');
-        } else {
-          fillCanvas("#FF0000");
-          socket.emit('touching', 'no');
+        // Fill all the canvases and add touch event listeners
+        for (let c in controls) {
+          fillCanvas("#FF0000", controls[c]);
+          controls[c].addEventListener("touchstart", function() { changeState(true, controls[c]); });
+          controls[c].addEventListener("touchend", function() { changeState(false, controls[c]); });
         }
-
       }
 
-      function fillCanvas(color) {
-        var canvas = document.getElementById("canvas");
+      function changeState(on, canvas) {
+        // Change color of the canvas and send a message to the server
+        if (on) {
+          fillCanvas("#00FF00", canvas);
+          socket.emit('touch', parseInt(canvas.id.charAt(1)), on);
+        } else {
+          fillCanvas("#FF0000", canvas);
+          socket.emit('touch', parseInt(canvas.id.charAt(1)), on);
+        }
+      }
+
+      function fillCanvas(color, canvas) {
+        // Change color of canvas
         var ctx = canvas.getContext("2d");
         ctx.fillStyle = color;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     </script>
 
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      div {
+        height: 100vh;
+        position: relative;
+      }
+
+      canvas {
+        display: block;
+        border: 1px solid;
+        margin: auto;
+        position: absolute;
+      }
+
+      /* Canvases, c0: up, c1: down, c2: right, c3: left */
+      #c0 {
+        top: 0; left: 0; bottom: 200px; right: 0;
+      }
+
+      #c1 {
+        top: 200px; left: 0; bottom: 0; right: 0;
+      }
+
+      #c2 {
+        top: 0px; left: 200px; bottom: 0; right: 0;
+      }
+
+      #c3 {
+        top: 0px; left: 0; bottom: 0; right: 200px;
+      }
+
+    </style>
+  </head>
+
   <body onLoad="initialize()">
-    <canvas width="100" height="100" id="canvas" style="border:solid"></canvas>
+    <div>
+    <canvas width="100" height="100" id="c0"></canvas>
+    <canvas width="100" height="100" id="c1"></canvas>
+    <canvas width="100" height="100" id="c2"></canvas>
+    <canvas width="100" height="100" id="c3"></canvas>
+  </div>
   </body>
 </html>

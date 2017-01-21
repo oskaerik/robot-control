@@ -1,26 +1,40 @@
 // Set up input server
 var inputServer = require('express')();
 var inputHttp = require('http').Server(inputServer);
-var io = require('socket.io')(inputHttp);
-var lastInput = "no";
+var inputIO = require('socket.io')(inputHttp);
+var inputSocket = null;
+
+// Movement array, 0: up, 1: down, 2: right, 3: left
+var movement = [false, false, false, false];
 
 inputServer.get('/', function(request, response) {
   response.sendFile(__dirname + '/index.html');
 })
 
 // When a user connects
-io.on('connection', function(socket) {
-  console.log("User connected");
+inputIO.on('connection', function(socket) {
+  console.log("User connected to input server");
+  inputSocket = socket;
 
   // If a client event is recieved
-  socket.on('touching', function(data) {
-    console.log(data);
-    lastInput = data;
-  })
+  socket.on('touch', function(index, state) {
+    movement[index] = state;
+    console.log(movement);
+    if (outputSocket) {
+      outputSocket.emit('event', movement);
+    }
+  });
 
   // When the user disconnects
   socket.on('disconnect', function() {
-    console.log("User disconnected")
+    console.log("User disconnected from input server");
+    if (socket == inputSocket) {
+      inputSocket = null;
+      movement = [false, false, false, false];
+      if (outputSocket) {
+        outputSocket.emit('event', movement);
+      }
+    }
   });
 });
 
@@ -28,20 +42,30 @@ io.on('connection', function(socket) {
 // Set up output server
 var outputServer = require('express')();
 var outputHttp = require('http').Server(outputServer);
+var outputIO = require('socket.io')(outputHttp);
+var outputSocket = null;
 
-outputServer.get('/', function(request, response) {
-  response.write(lastInput);
-  response.end();
-})
+// When a user connects
+outputIO.on('connection', function(socket) {
+  console.log("User connected to output server");
+  outputSocket = socket;
 
+  // When the user disconnects
+  socket.on('disconnect', function() {
+    console.log("User disconnected from output server");
+    if (socket == outputSocket) {
+      outputSocket = null;
+    }
+  });
+});
 
 // Run servers
 var inputPort = 3000;
 inputHttp.listen(inputPort, function() {
-  console.log("Input server running on port " + inputPort)
+  console.log("Input server running on port " + inputPort);
 });
 
 var outputPort = 3001;
 outputHttp.listen(outputPort, function() {
-  console.log("Output server running on port " + outputPort)
+  console.log("Output server running on port " + outputPort);
 });

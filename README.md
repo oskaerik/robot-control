@@ -16,6 +16,6 @@ Input 4  -> Pin 37
 If you prefer to use other GPIO pins, edit the `control.py` file in the `python` directory.
 
 ## Software
-First install Node.js, Socket.IO and socketIO-client for Python on your Raspberry Pi. Then clone the repository to your Raspberry Pi, open a terminal and `cd` into the `nodejs` directory and run `nodejs server.js`. Finally use `cd` to get into the `python` directory run the Python program using `sudo python3 control.py`.
+First install Node.js and socketIO-client-2 for Python on your Raspberry Pi. Then clone the repository to your Raspberry Pi, open a terminal and `cd` into the `nodejs` directory and run `nodejs server.js`. Finally use `cd` to get into the `python` directory run the Python program using `sudo python3 control.py`.
 
 Use your smartphone to connect to `your-local-ip-address:3000`, which is the input server. The Python program automatically connects to `localhost:3001`, which is the output server.

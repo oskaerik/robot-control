@@ -1,5 +1,5 @@
 # robot-movement
-This is a basic application for controlling a Raspberry Pi robot using a smartphone. Watch the video `video.mp4` to see it in action!
+This is an application built using React Native, Node.js and Socket.IO for controlling a Raspberry Pi robot using a smartphone. Watch the video `video.mp4` to see it in action!
 
 The GPIO output is handled by a Python program and the input is handled by a Node.js server.
 

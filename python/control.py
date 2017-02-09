@@ -1,64 +1,16 @@
 import RPi.GPIO as GPIO
 from socketIO_client import SocketIO
 
-# Output pin variables
+# Variables for pins and frequency
 M1e = 36
 M1a = 38
 M1b = 40
 M2e = 33
 M2a = 35
 M2b = 37
+freq = 50
 
-# Movement list, which pins to be turned on to go in a specific direction
-movement = [
-    [
-        # Drive forwards
-        (M1e, GPIO.HIGH),
-        (M1a, GPIO.HIGH),
-        (M1b, GPIO.LOW),
-        (M2e, GPIO.HIGH),
-        (M2a, GPIO.HIGH),
-        (M2b, GPIO.LOW)
-    ],
-    [
-        # Drive backwards
-        (M1e, GPIO.HIGH),
-        (M1a, GPIO.LOW),
-        (M1b, GPIO.HIGH),
-        (M2e, GPIO.HIGH),
-        (M2a, GPIO.LOW),
-        (M2b, GPIO.HIGH)
-    ],
-    [
-        # Spin right
-        (M1e, GPIO.HIGH),
-        (M1a, GPIO.HIGH),
-        (M1b, GPIO.LOW),
-        (M2e, GPIO.HIGH),
-        (M2a, GPIO.LOW),
-        (M2b, GPIO.HIGH)
-    ],
-    [
-        # Spin left
-        (M1e, GPIO.HIGH),
-        (M1a, GPIO.LOW),
-        (M1b, GPIO.HIGH),
-        (M2e, GPIO.HIGH),
-        (M2a, GPIO.HIGH),
-        (M2b, GPIO.LOW)
-    ],
-    [
-        # Full stop
-        (M1e, GPIO.LOW),
-        (M1a, GPIO.LOW),
-        (M1b, GPIO.LOW),
-        (M2e, GPIO.LOW),
-        (M2a, GPIO.LOW),
-        (M2b, GPIO.LOW)
-    ]
-]
-
-# Set up GPIO mode and pins
+# Set up GPIO mode, pins and PWM
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(M1e, GPIO.OUT)
 GPIO.setup(M1a, GPIO.OUT)
@@ -66,45 +18,59 @@ GPIO.setup(M1b, GPIO.OUT)
 GPIO.setup(M2e, GPIO.OUT)
 GPIO.setup(M2a, GPIO.OUT)
 GPIO.setup(M2b, GPIO.OUT)
-print("GPIO set up successful")
-
-
-# Movement function
-def move(index):
-    """Turns on the correct GPIO pins to move the robot"""
-    print(index)
-    for t in movement[index]:
-        GPIO.output(t[0], t[1])
-
+pwm1 = GPIO.PWM(M1e, freq)
+pwm2 = GPIO.PWM(M2e, freq)
 
 def connect():
     """Print a message when a connection to the output server is established"""
-    print("Connected")
+    print("Connected to server")
 
+def movement(*args):
+    """Gets a response from the output server and sets the PWM accordingly"""
+    print(args[0])
 
-def event(*args):
-    """Gets a response from the output server and calls the move function"""
-    for index, on in enumerate(args[0]):
-        # Find the first direction
-        if on:
-            move(index)
-            break
-        # If no movement was detected, full stop
-        if index == len(args[0])-1:
-            move(4)
+    # Set direction of the motors
+    if args[0][0] >= 0:
+        # Motor1 forward
+        GPIO.output(M1a, 1)
+        GPIO.output(M1b, 0)
+    else:
+        # Motor1 backward
+        GPIO.output(M1a, 0)
+        GPIO.output(M1b, 1)
+    if args[0][1] >= 0:
+        # Motor2 forward
+        GPIO.output(M2a, 1)
+        GPIO.output(M2b, 0)
+    else:
+        # Motor2 backward
+        GPIO.output(M2a, 0)
+        GPIO.output(M2b, 1)
+
+    # Set duty cycle of the motors
+    pwm1.ChangeDutyCycle(abs(args[0][0]))
+    pwm2.ChangeDutyCycle(abs(args[0][1]))
 
 try:
     # Connect to Node.js server
     print("Connecting to output server")
-    socketIO = SocketIO('localhost', 3001, )
+    socketIO = SocketIO('127.0.0.1', 3000)
     socketIO.on('connect', connect)
     socketIO.on('reconnect', connect)
-    socketIO.on('event', event)
+    socketIO.on('movement', movement)
+
+    # Start motor PWM at 0
+    pwm1.start(0)
+    pwm2.start(0)
 
     # Wait for events
     socketIO.wait()
 
 finally:
+    # Stop motor PWM
+    pwm1.stop()
+    pwm2.stop()
+
     # Clean up GPIO
     GPIO.cleanup()
     print("Clean up successful")

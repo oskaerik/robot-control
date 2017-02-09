@@ -1,71 +1,57 @@
-// Set up input server
-var inputServer = require('express')();
-var inputHttp = require('http').Server(inputServer);
-var inputIO = require('socket.io')(inputHttp);
+// Set up server
+const server = require('express')();
+const http = require('http').Server(server);
+const io = require('socket.io')(http);
+const port = 3000;
+
+// Set up input and output sockets
 var inputSocket = null;
+const inputIp = "192.168.0.100";
+var outputSocket = null;
+const outputIp = "127.0.0.1";
 
-// Movement array, 0: up, 1: down, 2: right, 3: left
-var movement = [false, false, false, false];
-
-inputServer.get('/', function(request, response) {
+server.get('/', function(request, response) {
   response.sendFile(__dirname + '/index.html');
 })
 
-// When a user connects
-inputIO.on('connection', function(socket) {
-  console.log("User connected to input server");
-  inputSocket = socket;
+// Socket.IO
+io.on('connection', (socket) => {
+    // Check ip address
+    var socketIp = socket.request.connection.remoteAddress.split('ffff:')[1];
 
-  // If a client event is recieved
-  socket.on('touch', function(index, state) {
-    movement[index] = state;
-    console.log(movement);
-    if (outputSocket) {
-      outputSocket.emit('event', movement);
+    // Check which socket connected and set input/output socket
+    if (socketIp == inputIp) {
+        inputSocket = socket;
+        console.log('Input socket connected: ' + socketIp);
+    } else if (socketIp == outputIp) {
+        outputSocket = socket;
+        console.log('Output socket connected: ' + socketIp);
+    } else {
+        console.log('Unwanted socket connected: ' + socketIp);
     }
-  });
 
-  // When the user disconnects
-  socket.on('disconnect', function() {
-    console.log("User disconnected from input server");
-    if (socket == inputSocket) {
-      inputSocket = null;
-      movement = [false, false, false, false];
-      if (outputSocket) {
-        outputSocket.emit('event', movement);
-      }
-    }
-  });
+
+    socket.on('movement', (input) => {
+        // Check if correct socket, then send to output socket
+        if (socketIp == inputIp && outputSocket != null) {
+            // console.log(input['direction']);
+            outputSocket.emit('movement', input['motors']);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        // Check which socket disconnected and set input/output socket to null
+        if (socketIp == inputIp) {
+            inputSocket = null;
+            console.log('Input socket disconnected: ' + socketIp);
+        } else if (socketIp == outputIp) {
+            outputSocket = null;
+            console.log('Output socket disconnected: ' + socketIp);
+        } else {
+            console.log('Unwanted socket disconnected: ' + socketIp);
+        }
+    });
 });
 
-
-// Set up output server
-var outputServer = require('express')();
-var outputHttp = require('http').Server(outputServer);
-var outputIO = require('socket.io')(outputHttp);
-var outputSocket = null;
-
-// When a user connects
-outputIO.on('connection', function(socket) {
-  console.log("User connected to output server");
-  outputSocket = socket;
-
-  // When the user disconnects
-  socket.on('disconnect', function() {
-    console.log("User disconnected from output server");
-    if (socket == outputSocket) {
-      outputSocket = null;
-    }
-  });
-});
-
-// Run servers
-var inputPort = 3000;
-inputHttp.listen(inputPort, function() {
-  console.log("Input server running on port " + inputPort);
-});
-
-var outputPort = 3001;
-outputHttp.listen(outputPort, function() {
-  console.log("Output server running on port " + outputPort);
-});
+// Run server
+http.listen(port, () => { console.log("Server running on port " + port); });
